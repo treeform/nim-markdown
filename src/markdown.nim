@@ -3,6 +3,9 @@ from sequtils import map
 from lists import DoublyLinkedList, prepend, append
 from htmlgen import nil, p, br, em, strong, a, img, code, del, blockquote, li, ul, ol, pre, code, table, thead, tbody, th, tr, td
 
+proc strip(s: string): string = unicode.strip(s)
+proc splitWhitespace(s: string): seq[string] = unicode.splitWhitespace(s)
+
 type
   MarkdownError* = object of Exception ## The error object for markdown parsing and rendering.
 
@@ -33,7 +36,7 @@ type
     title: string
     url: string
 
-  Link = object 
+  Link = object
     text: string ## A link contains link text (the visible text).
     url: string ## A link contains destination (the URI that is the link destination).
     title: string ## A link contains a optional title.
@@ -306,7 +309,7 @@ proc escapeCode*(doc: string): string =
 
 proc removeBlankLines(doc: string): string =
   doc.strip(leading=false, trailing=true, chars={'\n'})
-  
+
 proc removeFenceBlankLines(doc: string): string =
   doc.replace(re(r"^ {0,3}\n", {re.reMultiLine}), "\n").strip(leading=false, trailing=true, chars={'\n'})
 
@@ -631,7 +634,7 @@ proc parseCodeInfo*(doc: string, size: var int): string =
   size = doc.matchLen(re"(?: |\t)*([^`\n]*)?(?:\n|$)", matches=matches)
   if size == -1:
     return ""
-  for item in matches[0].splitWhitespace:
+  for item in unicode.splitWhitespace(matches[0]):
     return item
   return ""
 
@@ -921,7 +924,7 @@ proc parseHTMLTable(state: var State, token: var Token): bool =
       tableRowVal: HTMLTableRow(th: false, td: true),
     )
     for index, elem in heads:
-      var doc = 
+      var doc =
         if index >= rowColumns.len:
           ""
         else:
@@ -1088,7 +1091,7 @@ proc parseBlockquote(state: var State, token: var Token): bool =
   var size = -1
   var document = ""
   var found = false
-  
+
   while pos < token.doc.len:
     size = token.doc[pos ..< token.doc.len].matchLen(markerContent, matches=matches)
 
@@ -1102,7 +1105,7 @@ proc parseBlockquote(state: var State, token: var Token): bool =
 
     # blank line in non-lazy content always breaks the blockquote.
     if matches[2].strip == "":
-      document = document.strip(leading=false, trailing=true)
+      document = unicode.strip(document, leading=false, trailing=true)
       break
 
     # find the empty line in lazy content
@@ -1297,7 +1300,7 @@ proc parseAutoLink(state: var State, token: var Token, start: int): int =
       )
     ))
     return result
-  
+
   let LINK_RE = r"^<([a-zA-Z][a-zA-Z0-9+.\-]{1,31}):([^<>\x00-\x20]*)>"
   var linkMatches: array[2, string]
   result = token.doc[start ..< token.doc.len].matchLen(re(LINK_RE, {RegexFlag.reIgnoreCase}), matches=linkMatches)
@@ -1396,7 +1399,7 @@ proc getLinkDestination*(doc: string, start: int, slice: var Slice[int]): int =
   # if start < 1 or doc[start - 1] != '(':
   #   raise newException(MarkdownError, fmt"{start} can not be the start of inline link destination.")
 
-  # A link destination can be 
+  # A link destination can be
   # a sequence of zero or more characters between an opening < and a closing >
   # that contains no line breaks or unescaped < or > characters, or
   if doc[start] == '<':
@@ -1407,11 +1410,11 @@ proc getLinkDestination*(doc: string, start: int, slice: var Slice[int]): int =
     return result
 
   # A link destination can also be
-  # a nonempty sequence of characters that does not include ASCII space or control characters, 
-  # and includes parentheses only if 
-  # (a) they are backslash-escaped or 
-  # (b) they are part of a balanced pair of unescaped parentheses. 
-  # (Implementations may impose limits on parentheses nesting to avoid performance issues, 
+  # a nonempty sequence of characters that does not include ASCII space or control characters,
+  # and includes parentheses only if
+  # (a) they are backslash-escaped or
+  # (b) they are part of a balanced pair of unescaped parentheses.
+  # (Implementations may impose limits on parentheses nesting to avoid performance issues,
   # but at least three levels of nesting should be supported.)
   var level = 1 # assume the parenthesis has opened.
   var urlLen = 0
@@ -1707,19 +1710,19 @@ proc parseLink*(state: var State, token: var Token, start: int): int =
     if size != -1:
       return size
 
-  # A collapsed reference link consists of a link label that matches a link reference 
-  # definition elsewhere in the document, followed by the string []. 
+  # A collapsed reference link consists of a link label that matches a link reference
+  # definition elsewhere in the document, followed by the string [].
   if labelSlice.b + 2 < token.doc.len and token.doc[labelSlice.b+1 .. labelSlice.b+2] == "[]":
     var size = parseCollapsedReferenceLink(state, token, start, labelSlice)
     if size != -1:
       return size
 
-  # A full reference link consists of a link text immediately followed by a link label 
+  # A full reference link consists of a link text immediately followed by a link label
   # that matches a link reference definition elsewhere in the document.
   elif labelSlice.b + 1 < token.doc.len and token.doc[labelSlice.b + 1] == '[':
     return parseFullReferenceLink(state, token, start, labelSlice)
 
-  # A shortcut reference link consists of a link label that matches a link reference 
+  # A shortcut reference link consists of a link label that matches a link reference
   # definition elsewhere in the document and is not followed by [] or a link label.
   return parseShortcutReferenceLink(state, token, start, labelSlice)
 
@@ -1871,17 +1874,17 @@ proc parseImage*(state: var State, token: var Token, start: int): int =
   if labelSlice.b + 1 < token.doc.len and token.doc[labelSlice.b + 1] == '(':
     return parseInlineImage(state, token, start+1, labelSlice)
 
-  # A collapsed reference link consists of a link label that matches a link reference 
-  # definition elsewhere in the document, followed by the string []. 
+  # A collapsed reference link consists of a link label that matches a link reference
+  # definition elsewhere in the document, followed by the string [].
   elif labelSlice.b + 2 < token.doc.len and token.doc[labelSlice.b+1 .. labelSlice.b+2] == "[]":
     return parseCollapsedReferenceImage(state, token, start, labelSlice)
 
-  # A full reference link consists of a link text immediately followed by a link label 
+  # A full reference link consists of a link text immediately followed by a link label
   # that matches a link reference definition elsewhere in the document.
   if labelSlice.b + 1 < token.doc.len and token.doc[labelSlice.b + 1] == '[':
     return parseFullReferenceImage(state, token, start, labelSlice)
 
-  # A shortcut reference link consists of a link label that matches a link reference 
+  # A shortcut reference link consists of a link label that matches a link reference
   # definition elsewhere in the document and is not followed by [] or a link label.
   else:
     return parseShortcutReferenceImage(state, token, start, labelSlice)
@@ -2135,7 +2138,7 @@ proc processEmphasis*(state: var State, token: var Token, delimeterStack: var Do
 
     # if none is found.
     if not openerFound and not oddMatch:
-      # Set openers_bottom to the element before current_position. 
+      # Set openers_bottom to the element before current_position.
       # (We know that there are no openers for this kind of closer up to and including this point,
       # so this puts a lower bound on future searches.)
       if oldCloser.value.kind == "*":
@@ -2399,7 +2402,7 @@ proc renderToken(state: var State, token: Token): string =
   of CodeSpanToken: code(token.codeSpanVal.escapeAmpersandChar.escapeTag.escapeQuote)
   of SoftLineBreakToken: token.softLineBreakVal
   of DocumentToken: ""
-  else: raise newException(MarkdownError, fmt"{token.type} rendering not impleted.")
+  #else: raise newException(MarkdownError, fmt"{token.type} rendering not impleted.")
 
 proc render(state: var State, token: Token): string =
   var html: string
