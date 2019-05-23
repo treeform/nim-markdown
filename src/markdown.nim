@@ -4,7 +4,6 @@ from lists import DoublyLinkedList, prepend, append
 from htmlgen import nil, p, br, em, strong, a, img, code, del, blockquote, li, ul, ol, pre, code, table, thead, tbody, th, tr, td
 
 proc strip(s: string): string = unicode.strip(s)
-proc splitWhitespace(s: string): seq[string] = unicode.splitWhitespace(s)
 
 type
   MarkdownError* = object of Exception ## The error object for markdown parsing and rendering.
